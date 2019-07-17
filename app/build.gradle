@@ -1,0 +1,71 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 28
+    defaultConfig {
+        multiDexEnabled true
+        applicationId "com.jcy.ndk"
+        minSdkVersion 16
+        targetSdkVersion 28
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+        ndk {//指定生成的lib，比如此时生成NDKSample.so
+            moduleName   "NDKSample"
+            abiFilters "armeabi-v7a"
+        }
+
+        compileOptions {
+            sourceCompatibility JavaVersion.VERSION_1_8
+            targetCompatibility JavaVersion.VERSION_1_8
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    externalNativeBuild {
+        ndkBuild {
+            path 'src/main/jni/Android.mk'
+        }
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs += "src/main/jniLibs"
+        }
+    }
+
+    //处理所有报META-INF/*'的错误
+    packagingOptions {//处理冲突
+        pickFirst 'META-INF/*'
+        pickFirst 'lib/armeabi-v7a/libfmod.so'
+        pickFirst 'lib/armeabi-v7a/libfmodL.so'
+        pickFirst 'lib/armeabi-v7a/libNDKSample.so'
+        pickFirst 'lib/armeabi-v7a/libavcodec.so'
+        pickFirst 'lib/armeabi-v7a/libavdevice.so'
+        pickFirst 'lib/armeabi-v7a/libavfilter.so'
+        pickFirst 'lib/armeabi-v7a/libavformat.so'
+        pickFirst 'lib/armeabi-v7a/libavutil.so'
+        pickFirst 'lib/armeabi-v7a/libswresample.so'
+        pickFirst 'lib/armeabi-v7a/libswscale.so'
+        pickFirst 'lib/armeabi-v7a/libyuv.so'
+
+//        exclude 'lib/armeabi-v7a/libNDKSample.so'
+//        pickFirst 'lib/x86/libNDKSample.so'
+//        pickFirst 'lib/x86_64/libNDKSample.so'
+        //防止报以下异常
+        //More than one file was found with OS independent path 'lib/xxx/libNDKSample.so'
+    }
+}
+
+
+dependencies {
+    implementation files('libs/fmod.jar')
+    implementation project(':BaseLibrary')
+    annotationProcessor 'com.github.bumptech.glide:compiler:4.7.1'
+}

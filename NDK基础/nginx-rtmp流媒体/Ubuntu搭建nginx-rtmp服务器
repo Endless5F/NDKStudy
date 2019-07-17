@@ -1,0 +1,124 @@
+视频演示地址：PART1-https://www.bilibili.com/video/av18139213/
+
+第一步、准备工作
+
+
+第二步、安装nginx-rtmp流媒体服务器
+参考：https://www.cnblogs.com/cocoajin/p/4353767.html
+一：RTMP
+RTMP流媒体协议是 一套 Adobe 开发的音频视频实时传输协议；
+二：Nginx-rtmp
+ nginx-rtmp 是一个基于nginx的 RTMP服务模块,开源，免费
+https://github.com/arut/nginx-rtmp-module
+三：在 ubuntu server 14 安装流程
+1.先下载安装  nginx 和 nginx-rtmp 编译依赖工具
+sudo apt-get install build-essential libpcre3 libpcre3-dev libssl-dev
+2. 创建一个工作目录，并切换到工作目录
+mkdir ~/working
+cd ~/working
+3. 下载 nginx 和 nginx-rtmp源码
+wget http://nginx.org/download/nginx-1.7.5.tar.gz
+wget https://github.com/arut/nginx-rtmp-module/archive/master.zip
+4. 安装unzip工具，解压下载的安装包
+sudo apt-get install unzip
+5.解压 nginx 和 nginx-rtmp安装包
+tar -zxvf nginx-1.7.5.tar.gz
+unzip master.zip
+6. 切换到 nginx-目录
+cd nginx-1.7.5
+7.添加 nginx-rtmp 模板编译到 nginx
+./configure --with-http_ssl_module --add-module=../nginx-rtmp-module-master
+8.编译安装 
+make
+sudo make install
+9. 安装nginx init 脚本
+sudo wget https://raw.github.com/JasonGiedymin/nginx-init-ubuntu/master/nginx -O /etc/init.d/nginx
+sudo chmod +x /etc/init.d/nginx
+sudo update-rc.d nginx defaults
+10. 启动和停止nginx 服务，生成配置文件
+sudo service nginx start
+sudo service nginx stop
+##（参考第三步）11. 安装 FFmpeg
+sudo apt-add-repository ppa:jon-severinsson/ffmpeg
+sudo apt-get update
+sudo apt-get install ffmpeg
+12. 配置 nginx-rtmp 服务器
+打开 /usr/local/nginx/conf/nginx.conf
+在末尾添加如下 配置
+rtmp {
+    server {
+            listen 1935;
+            chunk_size 4096;
+
+
+            application live {
+                    live on;
+                    record off;
+hls on;  
+hls_path /usr/share/nginx/html/hls;  
+hls_fragment 2s;
+
+                    exec ffmpeg -i rtmp://localhost/live/$name -threads 1 -c:v libx264 -profile:v baseline -b:v 350K -s 640x360 -f flv -c:a aac -ac 1 -strict -2 -b:a 56k rtmp://localhost/live360p/$name;
+            }
+            application live360p {               #该挂载点为360p的压缩画面
+                    live on;
+                    record off;
+        }
+application hls360p {     #个人测试，单独开放的rtmp+hls360p挂载点和hls2挂载点的360p hls流
+                live on;  
+                hls on;  
+                hls_path /usr/share/nginx/html/hls2;  
+hls_fragment 2s;
+            }  
+    }
+}
+
+
+#注意：需要创建hls的目录：mkdir -p /usr/share/nginx/html/hls
+#注意：需要创建http的目录：mkdir -p /usr/share/nginx/html
+
+#修改HTTP的监听端口81，root 地址 /usr/share/nginx/html
+
+13. 保存上面配置文件，然后重新启动nginx服务
+sudo service nginx restart
+
+14. 如果你使用了防火墙，请允许端口 tcp 1935,81
+iptables -A INPUT -p tcp --dport 1935 -j ACCEPT 
+iptables -A OUTPUT -p tcp --sport 1935 -j ACCEPT 
+iptables -A INPUT -p tcp --dport 81 -j ACCEPT 
+iptables -A OUTPUT -p tcp --sport 81 -j ACCEPT
+
+15. 接下来可以
+
+使用obs推流：
+
+rtmp://192.168.1.163（这里填写你的nginx服务器IP）/live/test
+
+使用vlc拉流：
+
+rtmp://192.168.1.163/live/test
+
+rtmp://192.168.1.163/live360p/test  #在ffmepg配置完成前，360p的压缩工作无法完成，该流可以在ffmpeg配置完成后尝试
+
+http://192.168.1.163:81/hls/test.m3u8
+
+第三步、安装ffmpeg
+参考地址：http://cache.baiducontent.com/c?m=9f65cb4a8c8507ed19fa950d100b84274013d024609197027fa3c215cc7918061027a5e07a7e5119d7ce776003af5408beaf7425621420c1ca95d7158ee7c43f2ffe7b69360b8637468e5ef39d52609c60c655bdfb46a5eda52592dec5d2ac4353bb025825dfa3d70c1714bb33ad5226e3d7cd15520346&p=8b2a971486cc41af5ebac20c7f568d&newp=997bd416d9c11be912bd9b7e0d1082231610db2151d6d7106b82c825d7331b001c3bbfb423251206d3ce766c0aa44e5cecf5317331012ba3dda5c91d9fb4c57479d2617e&user=baidu&fm=sc&query=ffmpeg%3A+command+not+found&qid=8a0be1090002addd&p1=5
+
+操作步骤：
+#如果安装出现问题，可以清除重试： sudo apt-get remove --purge ffmpeg
+ubuntu-14   sudo apt-add-repository ppa:mc3man/trusty-media
+#ubuntu-16   sudo apt-add-repository ppa:jonathonf/ffmpeg-3
+sudo apt-get update -y          # --fix-missing
+sudo apt-get install ffmpeg -y
+注意：如果install失败，可参考https://www.cnblogs.com/zlslch/p/6860229.html换源(国内访问ubuntu原始源的部分地址容易失败，我用了ali源）
+源地址：vi  /etc/apt/sources.list  
+
+
+##如果apt安装失败，也可以手动安装，参考地址： http://blog.csdn.net/danfengw/article/details/62887997  （x265编码器的编译有点问题，可略过，测试默认使用x264即可）
+
+安装完成后，测试ffmpeg推流：
+ffmpeg -re -i /usr/share/nginx/html/hls/testflv.flv -vcodec libx264 -acodec aac -f flv -strict -2 rtmp://192.168.1.163:1935/live/testflv
+
+附flv样本视频：http://ovp.haplat.net/video/201712/0619d1c0b9bc71e01650dfa0c677fb1a_1514003206/F64572AC0895DED32BF200EEE613BCD4-01.flv
+附mp4样本视频：http://ovp.haplat.net/live/201712/359e1b7fcae646cd8d400e8a2a1238fe_20171211194942/359e1b7fcae646cd8d400e8a2a1238fe_20171211194942_live2vod.mp4

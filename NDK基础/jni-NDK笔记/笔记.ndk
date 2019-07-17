@@ -1,0 +1,24 @@
+NDK排查错误
+1.保存logcat文件，分析日志
+2.ndk-stack工具
+adb logcat | ndk-stack -sym
+    E:\CodeProject\android\MaYun\com_android_demo\NDKStudy\app\src\main\jniLibs\armeabi-v7a
+3.addr2line定位错误行(0x580001d log中错误方法的地址)
+arm-linux-androideabi-addr2line -e
+    E:\CodeProject\android\MaYun\com_android_demo\NDKStudy\app\src\main\jniLibs\armeabi-v7a/libNDKSample.so 0x580001d
+
+
+
+OpenSL ES（Open Sound Library embedded system）
+
+$(call import-module, transcode-1.1.7/avilib) 配置
+1.C/C++ build->Environment
+添加环境变量：
+名称：NDK_MODULE_PATH
+路径：E:\dongnao\openclass\ndk-wav\
+
+Object create
+Interface getInterface
+
+
+transcode 解码wav音频文件，解码得到音频数据给OpenSL播放

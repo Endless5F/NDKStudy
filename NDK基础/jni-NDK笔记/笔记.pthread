@@ -1,0 +1,11 @@
+Linux 系统多线程
+
+POSIX标准：包含多线程/网络编程等等...
+
+多线程使用的头文件：pthread
+
+apt-get install manpages-posix-dev  ==》安装posix文档
+Xshell连接云端后：make -k pthread ==》可以查看pthread头文件中的方法（默认有posix文档）
+
+如何查看一个方法的参数：man xxx（方法名）
+

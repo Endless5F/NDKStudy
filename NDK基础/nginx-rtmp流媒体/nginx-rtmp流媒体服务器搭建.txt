@@ -1,0 +1,201 @@
+# 自己搭建流程
+1.cd /usr/jcy
+    wget http://nginx.org/download/nginx-1.10.3.tar.gz
+    wget https://github.com/arut/nginx-rtmp-module/archive/master.zip
+2.sudo apt-get update
+  sudo apt-get install libpcre3 libpcre3-dev
+  sudo apt-get install openssl libssl-dev
+3.tar -zxvf nginx-1.10.3.tar.gz
+  unzip master.zip
+4.cd nginx-1.10.3
+5.添加 nginx-rtmp 模板编译到 nginx
+    ./configure --add-module=../nginx-rtmp-module-master
+6.编译安装nginx
+    make
+    sudo make install
+7.进入安装目录/usr/local/nginx，运行命令./sbin/nginx
+8.cd /usr/local/nginx/conf
+9.vim nginx.cong 修改http监听端口为 81
+10.cd /usr/local/nginx
+    重启服务器 sudo ./sbin/nginx -s reload
+11.浏览器中输入 ip地址:81
+    出现Welcome to nginx!
+      If you see this page, the nginx web server is successfully installed and working. Further configuration is required.
+
+      For online documentation and support please refer to nginx.org.
+      Commercial support is available at nginx.com.
+
+      Thank you for using nginx. 即为成功
+12.配置rtmp ：
+    cd /usr/local/nginx/conf
+    vim nginx.cong
+
+文件内修改为以下样式：
+
+#user  nobody;
+worker_processes  1;
+
+#error_log  logs/error.log;
+#error_log  logs/error.log  notice;
+#error_log  logs/error.log  info;
+
+#pid        logs/nginx.pid;
+
+
+events {
+    worker_connections  1024;
+}
+
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    #log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+    #                  '$status $body_bytes_sent "$http_referer" '
+    #                  '"$http_user_agent" "$http_x_forwarded_for"';
+
+    #access_log  logs/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    #keepalive_timeout  0;
+    keepalive_timeout  65;
+
+    #gzip  on;
+
+    server {
+        listen       81;
+        server_name  localhost;
+
+        #charset koi8-r;
+
+        #access_log  logs/host.access.log  main;
+
+        location / {
+            root   html;
+            index  index.html index.htm;
+        }
+
+		location /stat {     #第二处添加的location字段。
+            rtmp_stat all;
+			rtmp_stat_stylesheet stat.xsl;
+		}
+
+		location /stat.xsl { #第二处添加的location字段。
+			root /usr/local/nginx/nginx-rtmp-module/;
+		}
+
+		location /live {  #这里也是需要添加的字段。
+			types {
+				application/vnd.apple.mpegurl m3u8;
+				video/mp2t ts;
+			}
+			alias /opt/video/hls;
+			expires -1;
+			add_header Cache-Control no-cache;
+		}
+
+        #error_page  404              /404.html;
+
+        # redirect server error pages to the static page /50x.html
+        #
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+
+        # proxy the PHP scripts to Apache listening on 127.0.0.1:80
+        #
+        #location ~ \.php$ {
+        #    proxy_pass   http://127.0.0.1;
+        #}
+
+        # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
+        #
+        #location ~ \.php$ {
+        #    root           html;
+        #    fastcgi_pass   127.0.0.1:9000;
+        #    fastcgi_index  index.php;
+        #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+        #    include        fastcgi_params;
+        #}
+
+        # deny access to .htaccess files, if Apache's document root
+        # concurs with nginx's one
+        #
+        #location ~ /\.ht {
+        #    deny  all;
+        #}
+    }
+
+
+    # another virtual host using mix of IP-, name-, and port-based configuration
+    #
+    #server {
+    #    listen       8000;
+    #    listen       somename:8080;
+    #    server_name  somename  alias  another.alias;
+
+    #    location / {
+    #        root   html;
+    #        index  index.html index.htm;
+    #    }
+    #}
+
+
+    # HTTPS server
+    #
+    #server {
+    #    listen       443 ssl;
+    #    server_name  localhost;
+
+    #    ssl_certificate      cert.pem;
+    #    ssl_certificate_key  cert.key;
+
+    #    ssl_session_cache    shared:SSL:1m;
+    #    ssl_session_timeout  5m;
+
+    #    ssl_ciphers  HIGH:!aNULL:!MD5;
+    #    ssl_prefer_server_ciphers  on;
+
+    #    location / {
+    #        root   html;
+    #        index  index.html index.htm;
+    #    }
+    #}
+
+}
+
+rtmp { #RTMP服务
+    server {
+        listen 1935;  #//服务端口
+		chunk_size 4096;   #//数据传输块的大小
+
+		application vod {
+			play /usr/share/nginx/video/vod; #//视频文件存放位置。
+		}
+
+		application live {
+			live on;
+			hls on; #这个参数把直播服务器改造成实时回放服务器。
+			wait_key on; #对视频切片进行保护，这样就不会产生马赛克了。
+			hls_path /opt/video/hls; #切片视频文件存放位置。
+			hls_fragment 10s;     #每个视频切片的时长。
+			hls_playlist_length 60s;  #总共可以回看的事件，这里设置的是1分钟。
+			hls_continuous on; #连续模式。
+			hls_cleanup on;    #对多余的切片进行删除。
+			hls_nested on;     #嵌套模式。
+        }
+    }
+}
+
+13.cd /usr/local/nginx
+    重启服务器 sudo ./sbin/nginx -s reload
+14.obs 配置推流 rtmp://ip地址:1935/live/test 成功
+15.vlc 配置网络串口 rtmp://ip地址:1935/live/test 成功
+16.14和15步成功，即成功
+注：阿里云需要开发81 和 1935端口（配置网络安全组）
+启动nginx： 进入安装目录/usr/local/nginx，运行命令./sbin/nginx
+重启nginx： 进入安装目录/usr/local/nginx，运行命令sudo ./sbin/nginx -s reload
